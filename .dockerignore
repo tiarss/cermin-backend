@@ -1,0 +1,8 @@
+.air.toml
+.env
+.git
+.gocache
+client_secret*.json
+tmp
+Dockerfile
+docker-compose.yml
