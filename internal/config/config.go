@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -48,17 +49,24 @@ func Load() Config {
 		GoogleOAuthState:   getEnv("GOOGLE_OAUTH_STATE", "change-this-state"),
 	}
 
-	cfg.DatabaseURL = fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		cfg.DBUser,
-		cfg.DBPassword,
-		cfg.DBHost,
-		cfg.DBPort,
-		cfg.DBName,
-		cfg.DBSSLMode,
-	)
+	cfg.DatabaseURL = buildDatabaseURL(cfg)
 
 	return cfg
+}
+
+func buildDatabaseURL(cfg Config) string {
+	databaseURL := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(cfg.DBUser, cfg.DBPassword),
+		Host:   fmt.Sprintf("%s:%s", cfg.DBHost, cfg.DBPort),
+		Path:   cfg.DBName,
+	}
+
+	query := databaseURL.Query()
+	query.Set("sslmode", cfg.DBSSLMode)
+	databaseURL.RawQuery = query.Encode()
+
+	return databaseURL.String()
 }
 
 func getEnv(key string, fallback string) string {
