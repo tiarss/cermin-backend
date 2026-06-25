@@ -20,11 +20,31 @@ type PublicUser struct {
 	AuthProvider string `json:"auth_provider"`
 }
 
+type AdminUser struct {
+	ID           int64     `json:"id"`
+	Name         string    `json:"name"`
+	Email        string    `json:"email"`
+	AuthProvider string    `json:"auth_provider"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 func ToPublicUser(user *User) PublicUser {
 	return PublicUser{
 		ID:           user.ID,
 		Name:         user.Name,
 		Email:        user.Email,
 		AuthProvider: user.AuthProvider,
+	}
+}
+
+func ToAdminUser(user *User) AdminUser {
+	return AdminUser{
+		ID:           user.ID,
+		Name:         user.Name,
+		Email:        user.Email,
+		AuthProvider: user.AuthProvider,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
 	}
 }

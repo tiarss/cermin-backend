@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 
+	"cermin-backend/internal/admin"
 	"cermin-backend/internal/auth"
 	"cermin-backend/internal/config"
 	"cermin-backend/internal/user"
@@ -17,6 +18,8 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 	registerDocsRoutes(r)
 
 	userRepository := user.NewRepository(db)
+	userService := user.NewService(userRepository)
+	userHandler := admin.NewUserHandler(userService)
 	authService := auth.NewService(userRepository, cfg.JWTSecret)
 	authHandler := auth.NewHandler(authService, auth.GoogleOAuth{
 		ClientID:     cfg.GoogleClientID,
@@ -39,6 +42,18 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 			authRoutes.POST("/login", authHandler.Login)
 			authRoutes.GET("/google", authHandler.GoogleRedirect)
 			authRoutes.GET("/google/callback", authHandler.GoogleCallback)
+		}
+
+		adminRoutes := v1.Group("/admin")
+		{
+			userRoutes := adminRoutes.Group("/users")
+			{
+				userRoutes.POST("", userHandler.Create)
+				userRoutes.GET("", userHandler.List)
+				userRoutes.GET("/:id", userHandler.Get)
+				userRoutes.PATCH("/:id", userHandler.Update)
+				userRoutes.DELETE("/:id", userHandler.Delete)
+			}
 		}
 	}
 
