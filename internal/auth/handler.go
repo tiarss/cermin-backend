@@ -10,12 +10,14 @@ import (
 type Handler struct {
 	service *Service
 	google  GoogleOAuth
+	apple   AppleOAuth
 }
 
-func NewHandler(service *Service, google GoogleOAuth) *Handler {
+func NewHandler(service *Service, google GoogleOAuth, apple AppleOAuth) *Handler {
 	return &Handler{
 		service: service,
 		google:  google,
+		apple:   apple,
 	}
 }
 
@@ -121,4 +123,63 @@ func (h *Handler) GoogleCallback(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) AppleRedirect(c *gin.Context) {
+	if !h.apple.IsConfigured() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "apple oauth is not configured"})
+		return
+	}
+
+	c.Redirect(http.StatusTemporaryRedirect, h.apple.AuthURL())
+}
+
+func (h *Handler) AppleCallback(c *gin.Context) {
+	if !h.apple.IsConfigured() {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "apple oauth is not configured"})
+		return
+	}
+
+	if h.apple.State != "" && callbackValue(c, "state") != h.apple.State {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid apple oauth state"})
+		return
+	}
+
+	code := callbackValue(c, "code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing apple oauth code"})
+		return
+	}
+
+	tokenResponse, err := h.apple.ExchangeCode(c.Request.Context(), code)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	appleUser, err := h.apple.UserInfo(c.Request.Context(), tokenResponse.IDToken, callbackValue(c, "user"))
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.LoginOrCreateAppleUser(c.Request.Context(), *appleUser)
+	if errors.Is(err, ErrEmailAlreadyUsed) {
+		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func callbackValue(c *gin.Context, key string) string {
+	if value := c.PostForm(key); value != "" {
+		return value
+	}
+
+	return c.Query(key)
 }

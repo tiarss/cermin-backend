@@ -127,6 +127,37 @@ func (s *Service) LoginOrCreateGoogleUser(ctx context.Context, googleUser Google
 	return s.authResult(createdUser)
 }
 
+func (s *Service) LoginOrCreateAppleUser(ctx context.Context, appleUser AppleUserInfo) (*AuthResult, error) {
+	foundUser, err := s.users.FindByAppleID(ctx, appleUser.ID)
+	if err == nil {
+		return s.authResult(foundUser)
+	}
+	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
+		return nil, err
+	}
+
+	existingEmailUser, err := s.users.FindByEmail(ctx, appleUser.Email)
+	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
+		return nil, err
+	}
+	if existingEmailUser != nil {
+		return nil, ErrEmailAlreadyUsed
+	}
+
+	appleID := appleUser.ID
+	createdUser, err := s.users.Create(ctx, user.CreateUserInput{
+		Name:         appleUser.Name,
+		Email:        appleUser.Email,
+		AuthProvider: "apple",
+		AppleID:      &appleID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.authResult(createdUser)
+}
+
 func (s *Service) authResult(foundUser *user.User) (*AuthResult, error) {
 	token, err := s.createJWT(foundUser)
 	if err != nil {

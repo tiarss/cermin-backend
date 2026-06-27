@@ -9,6 +9,7 @@ type User struct {
 	PasswordHash *string   `gorm:"type:text"`
 	AuthProvider string    `gorm:"size:30;not null;default:local"`
 	GoogleID     *string   `gorm:"size:255;uniqueIndex"`
+	AppleID      *string   `gorm:"size:255;uniqueIndex"`
 	CreatedAt    time.Time `gorm:"not null"`
 	UpdatedAt    time.Time `gorm:"not null"`
 }
