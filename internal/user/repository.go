@@ -16,6 +16,7 @@ type Repository interface {
 	FindByID(ctx context.Context, id int64) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByGoogleID(ctx context.Context, googleID string) (*User, error)
+	FindByAppleID(ctx context.Context, appleID string) (*User, error)
 	Update(ctx context.Context, id int64, input UpdateUserInput) (*User, error)
 	Delete(ctx context.Context, id int64) error
 }
@@ -26,6 +27,7 @@ type CreateUserInput struct {
 	PasswordHash *string
 	AuthProvider string
 	GoogleID     *string
+	AppleID      *string
 }
 
 type ListUsersInput struct {
@@ -55,6 +57,7 @@ func (r *GormRepository) Create(ctx context.Context, input CreateUserInput) (*Us
 		PasswordHash: input.PasswordHash,
 		AuthProvider: input.AuthProvider,
 		GoogleID:     input.GoogleID,
+		AppleID:      input.AppleID,
 	}
 
 	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
@@ -167,6 +170,20 @@ func (r *GormRepository) FindByGoogleID(ctx context.Context, googleID string) (*
 	var user User
 
 	err := r.db.WithContext(ctx).Where("google_id = ?", googleID).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *GormRepository) FindByAppleID(ctx context.Context, appleID string) (*User, error) {
+	var user User
+
+	err := r.db.WithContext(ctx).Where("apple_id = ?", appleID).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrUserNotFound
 	}

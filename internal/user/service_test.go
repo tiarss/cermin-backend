@@ -88,6 +88,7 @@ func (r *fakeRepository) Create(ctx context.Context, input CreateUserInput) (*Us
 		PasswordHash: input.PasswordHash,
 		AuthProvider: input.AuthProvider,
 		GoogleID:     input.GoogleID,
+		AppleID:      input.AppleID,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -128,6 +129,16 @@ func (r *fakeRepository) FindByEmail(ctx context.Context, email string) (*User, 
 func (r *fakeRepository) FindByGoogleID(ctx context.Context, googleID string) (*User, error) {
 	for _, user := range r.users {
 		if user.GoogleID != nil && *user.GoogleID == googleID {
+			return user, nil
+		}
+	}
+
+	return nil, ErrUserNotFound
+}
+
+func (r *fakeRepository) FindByAppleID(ctx context.Context, appleID string) (*User, error) {
+	for _, user := range r.users {
+		if user.AppleID != nil && *user.AppleID == appleID {
 			return user, nil
 		}
 	}

@@ -12,7 +12,7 @@ This project has two workflows:
 Runs on:
 
 ```txt
-push to main
+push to master
 pull request
 ```
 
@@ -31,22 +31,24 @@ It does:
 Runs on:
 
 ```txt
-new production tag matching prod_Vx.x.x
+new production tag matching Vx.x.x from master
 manual trigger with a production tag
 ```
 
 Production tags must use this format:
 
 ```txt
-prod_V1.2.3
+V1.2.3
 ```
+
+The tagged commit must exist on the `master` branch. Tags created from another branch will fail before deployment.
 
 It SSHs into the VPS and runs:
 
 ```bash
 cd /opt/cermin-backend
 git fetch --tags --force origin
-git checkout --force prod_V1.2.3
+git checkout --force V1.2.3
 docker compose up -d --build
 docker image prune -f
 ```
@@ -95,7 +97,7 @@ Run workflow
 Enter the production tag you want to deploy, for example:
 
 ```txt
-prod_V1.2.3
+V1.2.3
 ```
 
 ## Production Deploy
@@ -103,11 +105,13 @@ prod_V1.2.3
 Create and push a production tag:
 
 ```bash
-git tag prod_V1.2.3
-git push origin prod_V1.2.3
+git checkout master
+git pull origin master
+git tag V1.2.3
+git push origin V1.2.3
 ```
 
-GitHub Actions will validate the tag, run tests, build the app, build the Docker image, and deploy the exact tagged commit to the VPS.
+GitHub Actions will validate the tag, confirm the tagged commit is on `master`, run tests, build the app, build the Docker image, and deploy the exact tagged commit to the VPS.
 
 ## Important
 

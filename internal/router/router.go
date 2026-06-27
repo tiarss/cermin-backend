@@ -26,6 +26,13 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 		ClientSecret: cfg.GoogleClientSecret,
 		RedirectURL:  cfg.GoogleRedirectURL,
 		State:        cfg.GoogleOAuthState,
+	}, auth.AppleOAuth{
+		ClientID:    cfg.AppleClientID,
+		TeamID:      cfg.AppleTeamID,
+		KeyID:       cfg.AppleKeyID,
+		PrivateKey:  cfg.ApplePrivateKey,
+		RedirectURL: cfg.AppleRedirectURL,
+		State:       cfg.AppleOAuthState,
 	})
 
 	v1 := r.Group("/api/v1")
@@ -42,6 +49,9 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 			authRoutes.POST("/login", authHandler.Login)
 			authRoutes.GET("/google", authHandler.GoogleRedirect)
 			authRoutes.GET("/google/callback", authHandler.GoogleCallback)
+			authRoutes.GET("/apple", authHandler.AppleRedirect)
+			authRoutes.GET("/apple/callback", authHandler.AppleCallback)
+			authRoutes.POST("/apple/callback", authHandler.AppleCallback)
 		}
 
 		adminRoutes := v1.Group("/admin")

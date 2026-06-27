@@ -26,6 +26,13 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 	GoogleOAuthState   string
+
+	AppleClientID    string
+	AppleTeamID      string
+	AppleKeyID       string
+	ApplePrivateKey  string
+	AppleRedirectURL string
+	AppleOAuthState  string
 }
 
 func Load() Config {
@@ -47,6 +54,13 @@ func Load() Config {
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
 		GoogleOAuthState:   getEnv("GOOGLE_OAUTH_STATE", "change-this-state"),
+
+		AppleClientID:    getEnv("APPLE_CLIENT_ID", ""),
+		AppleTeamID:      getEnv("APPLE_TEAM_ID", ""),
+		AppleKeyID:       getEnv("APPLE_KEY_ID", ""),
+		ApplePrivateKey:  getEnv("APPLE_PRIVATE_KEY", ""),
+		AppleRedirectURL: getEnv("APPLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/apple/callback"),
+		AppleOAuthState:  getEnv("APPLE_OAUTH_STATE", "change-this-state"),
 	}
 
 	cfg.DatabaseURL = buildDatabaseURL(cfg)
