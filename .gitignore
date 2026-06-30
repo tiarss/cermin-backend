@@ -3,3 +3,5 @@ client_secret*.json
 AuthKey_*.p8
 .gocache/
 tmp/
+
+.env.example

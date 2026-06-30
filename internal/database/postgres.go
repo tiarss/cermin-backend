@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	"cermin-backend/internal/journal"
 	"cermin-backend/internal/user"
 
 	"gorm.io/driver/postgres"
@@ -28,7 +29,14 @@ func Connect(databaseURL string) (*gorm.DB, error) {
 }
 
 func AutoMigrate(db *gorm.DB) error {
-	if err := db.AutoMigrate(&user.User{}); err != nil {
+	if err := db.AutoMigrate(
+		&user.User{},
+		&journal.JournalEntry{},
+		&journal.JournalReflection{},
+		&journal.ReflectionSummary{},
+		&journal.ReflectionHiddenLanguage{},
+		&journal.ReflectionEmotionScore{},
+	); err != nil {
 		return fmt.Errorf("failed to auto migrate database: %w", err)
 	}
 

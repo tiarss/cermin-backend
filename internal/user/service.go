@@ -56,7 +56,7 @@ func (s *Service) Create(ctx context.Context, input CreateAdminUserInput) (*Admi
 		return nil, err
 	}
 
-	createdUser, err := s.users.Create(ctx, CreateUserInput{
+	createdUser, err := s.users.Create(ctx, CreateUserRequest{
 		Name:         input.Name,
 		Email:        input.Email,
 		PasswordHash: &passwordHash,
@@ -84,7 +84,7 @@ func (s *Service) List(ctx context.Context, input ListAdminUsersInput) (*ListAdm
 		perPage = 100
 	}
 
-	users, total, err := s.users.List(ctx, ListUsersInput{
+	users, total, err := s.users.List(ctx, ListUsersRequest{
 		Page:    page,
 		PerPage: perPage,
 		Search:  input.Search,
@@ -127,7 +127,7 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateAdminUserInp
 		}
 	}
 
-	repositoryInput := UpdateUserInput{
+	repositoryInput := UpdateUserRequest{
 		Name:  input.Name,
 		Email: input.Email,
 	}

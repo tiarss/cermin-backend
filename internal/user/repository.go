@@ -5,23 +5,26 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
 var ErrUserNotFound = errors.New("user not found")
 
+const postgresUniqueViolationCode = "23505"
+
 type Repository interface {
-	Create(ctx context.Context, input CreateUserInput) (*User, error)
-	List(ctx context.Context, input ListUsersInput) ([]User, int64, error)
+	Create(ctx context.Context, request CreateUserRequest) (*User, error)
+	List(ctx context.Context, request ListUsersRequest) ([]User, int64, error)
 	FindByID(ctx context.Context, id int64) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByGoogleID(ctx context.Context, googleID string) (*User, error)
 	FindByAppleID(ctx context.Context, appleID string) (*User, error)
-	Update(ctx context.Context, id int64, input UpdateUserInput) (*User, error)
+	Update(ctx context.Context, id int64, request UpdateUserRequest) (*User, error)
 	Delete(ctx context.Context, id int64) error
 }
 
-type CreateUserInput struct {
+type CreateUserRequest struct {
 	Name         string
 	Email        string
 	PasswordHash *string
@@ -30,13 +33,13 @@ type CreateUserInput struct {
 	AppleID      *string
 }
 
-type ListUsersInput struct {
+type ListUsersRequest struct {
 	Page    int
 	PerPage int
 	Search  string
 }
 
-type UpdateUserInput struct {
+type UpdateUserRequest struct {
 	Name         *string
 	Email        *string
 	PasswordHash *string
@@ -50,42 +53,32 @@ func NewRepository(db *gorm.DB) *GormRepository {
 	return &GormRepository{db: db}
 }
 
-func (r *GormRepository) Create(ctx context.Context, input CreateUserInput) (*User, error) {
+func (r *GormRepository) Create(ctx context.Context, request CreateUserRequest) (*User, error) {
 	user := User{
-		Name:         input.Name,
-		Email:        input.Email,
-		PasswordHash: input.PasswordHash,
-		AuthProvider: input.AuthProvider,
-		GoogleID:     input.GoogleID,
-		AppleID:      input.AppleID,
+		Name:         request.Name,
+		Email:        request.Email,
+		PasswordHash: request.PasswordHash,
+		AuthProvider: request.AuthProvider,
+		GoogleID:     request.GoogleID,
+		AppleID:      request.AppleID,
 	}
 
 	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
+		if isUniqueViolation(err) {
+			return nil, ErrEmailAlreadyUsed
+		}
 		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (r *GormRepository) List(ctx context.Context, input ListUsersInput) ([]User, int64, error) {
+func (r *GormRepository) List(ctx context.Context, request ListUsersRequest) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	page := input.Page
-	if page < 1 {
-		page = 1
-	}
-
-	perPage := input.PerPage
-	if perPage < 1 {
-		perPage = 10
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-
 	query := r.db.WithContext(ctx).Model(&User{})
-	search := strings.TrimSpace(input.Search)
+	search := strings.TrimSpace(request.Search)
 	if search != "" {
 		searchPattern := "%" + strings.ToLower(search) + "%"
 		query = query.Where("LOWER(name) LIKE ? OR LOWER(email) LIKE ?", searchPattern, searchPattern)
@@ -95,8 +88,8 @@ func (r *GormRepository) List(ctx context.Context, input ListUsersInput) ([]User
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * perPage
-	if err := query.Order("created_at DESC").Limit(perPage).Offset(offset).Find(&users).Error; err != nil {
+	offset := (request.Page - 1) * request.PerPage
+	if err := query.Order("created_at DESC").Limit(request.PerPage).Offset(offset).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -131,23 +124,26 @@ func (r *GormRepository) FindByEmail(ctx context.Context, email string) (*User, 
 	return &user, nil
 }
 
-func (r *GormRepository) Update(ctx context.Context, id int64, input UpdateUserInput) (*User, error) {
+func (r *GormRepository) Update(ctx context.Context, id int64, request UpdateUserRequest) (*User, error) {
 	foundUser, err := r.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if input.Name != nil {
-		foundUser.Name = *input.Name
+	if request.Name != nil {
+		foundUser.Name = *request.Name
 	}
-	if input.Email != nil {
-		foundUser.Email = *input.Email
+	if request.Email != nil {
+		foundUser.Email = *request.Email
 	}
-	if input.PasswordHash != nil {
-		foundUser.PasswordHash = input.PasswordHash
+	if request.PasswordHash != nil {
+		foundUser.PasswordHash = request.PasswordHash
 	}
 
 	if err := r.db.WithContext(ctx).Save(foundUser).Error; err != nil {
+		if isUniqueViolation(err) {
+			return nil, ErrEmailAlreadyUsed
+		}
 		return nil, err
 	}
 
@@ -192,4 +188,9 @@ func (r *GormRepository) FindByAppleID(ctx context.Context, appleID string) (*Us
 	}
 
 	return &user, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == postgresUniqueViolationCode
 }

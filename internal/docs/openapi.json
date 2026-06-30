@@ -274,6 +274,11 @@
         "summary": "List users",
         "description": "Lists users for the admin dashboard.",
         "tags": ["Admin Users"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "page",
@@ -290,7 +295,6 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 100,
               "default": 10
             }
           },
@@ -316,6 +320,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -325,6 +332,11 @@
         "summary": "Create user",
         "description": "Creates a local user account from the admin dashboard.",
         "tags": ["Admin Users"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -349,6 +361,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
           },
@@ -363,6 +378,11 @@
         "summary": "Get user",
         "description": "Retrieves a user for the admin dashboard.",
         "tags": ["Admin Users"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/UserID"
@@ -382,6 +402,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
@@ -394,6 +417,11 @@
         "summary": "Update user",
         "description": "Updates user details from the admin dashboard.",
         "tags": ["Admin Users"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/UserID"
@@ -423,6 +451,9 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
@@ -438,6 +469,11 @@
         "summary": "Delete user",
         "description": "Deletes a user from the admin dashboard.",
         "tags": ["Admin Users"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "$ref": "#/components/parameters/UserID"
@@ -450,8 +486,54 @@
           "400": {
             "$ref": "#/components/responses/BadRequest"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/journals": {
+      "post": {
+        "summary": "Create journal entry",
+        "description": "Creates a journal entry for the authenticated user and generates a reflection.",
+        "tags": ["Journals"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJournalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Journal entry created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -461,6 +543,13 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
     "parameters": {
       "UserID": {
         "name": "id",
@@ -627,6 +716,191 @@
           "per_page": {
             "type": "integer",
             "example": 10
+          }
+        }
+      },
+      "CreateJournalRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "nullable": true,
+            "example": "A difficult but hopeful day"
+          },
+          "content": {
+            "type": "string",
+            "example": "Today felt heavy, but I noticed one small thing I am grateful for."
+          },
+          "is_crisis": {
+            "type": "boolean",
+            "default": false,
+            "example": false
+          },
+          "context_data": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional extra context passed to the reflection generator.",
+            "example": "User asked for a gentle reflection tone."
+          }
+        }
+      },
+      "JournalEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "title": {
+            "type": "string",
+            "nullable": true,
+            "example": "A difficult but hopeful day"
+          },
+          "content": {
+            "type": "string",
+            "example": "Today felt heavy, but I noticed one small thing I am grateful for."
+          },
+          "is_crisis": {
+            "type": "boolean",
+            "example": false
+          },
+          "reflection": {
+            "$ref": "#/components/schemas/JournalReflection"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "JournalReflection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "journal_entry_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "validation": {
+            "type": "string",
+            "nullable": true,
+            "example": "It makes sense that today felt heavy."
+          },
+          "growth_prompt": {
+            "type": "string",
+            "nullable": true,
+            "example": "What would help you feel one percent safer tonight?"
+          },
+          "dominant_emotion": {
+            "type": "string",
+            "nullable": true,
+            "enum": ["Senang", "Sedih", "Marah", "Cemas", "Tenang", "Lelah", "Harapan", "Lainnya"],
+            "example": "Harapan"
+          },
+          "summaries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReflectionSummary"
+            }
+          },
+          "hidden_languages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReflectionHiddenLanguage"
+            }
+          },
+          "emotion_scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReflectionEmotionScore"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ReflectionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "reflection_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "position": {
+            "type": "integer",
+            "example": 0
+          },
+          "summary_text": {
+            "type": "string",
+            "example": "The entry describes a difficult day with a small moment of gratitude."
+          }
+        }
+      },
+      "ReflectionHiddenLanguage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "reflection_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "position": {
+            "type": "integer",
+            "example": 0
+          },
+          "hidden_language": {
+            "type": "string",
+            "example": "A need for reassurance and rest."
+          }
+        }
+      },
+      "ReflectionEmotionScore": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "reflection_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "label": {
+            "type": "string",
+            "enum": ["Senang", "Sedih", "Marah", "Cemas", "Tenang", "Lelah", "Harapan", "Lainnya"],
+            "example": "Harapan"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 100,
+            "example": 42.5
           }
         }
       },

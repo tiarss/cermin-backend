@@ -5,11 +5,11 @@ import "time"
 type User struct {
 	ID           int64     `gorm:"primaryKey;autoIncrement"`
 	Name         string    `gorm:"size:100;not null"`
-	Email        string    `gorm:"size:150;not null;uniqueIndex"`
+	Email        string    `gorm:"size:150;not null;unique"`
 	PasswordHash *string   `gorm:"type:text"`
 	AuthProvider string    `gorm:"size:30;not null;default:local"`
-	GoogleID     *string   `gorm:"size:255;uniqueIndex"`
-	AppleID      *string   `gorm:"size:255;uniqueIndex"`
+	GoogleID     *string   `gorm:"size:255;unique"`
+	AppleID      *string   `gorm:"size:255;unique"`
 	CreatedAt    time.Time `gorm:"not null"`
 	UpdatedAt    time.Time `gorm:"not null"`
 }

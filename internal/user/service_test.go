@@ -80,7 +80,7 @@ func newFakeRepository() *fakeRepository {
 	}
 }
 
-func (r *fakeRepository) Create(ctx context.Context, input CreateUserInput) (*User, error) {
+func (r *fakeRepository) Create(ctx context.Context, input CreateUserRequest) (*User, error) {
 	user := &User{
 		ID:           r.nextID,
 		Name:         input.Name,
@@ -98,7 +98,7 @@ func (r *fakeRepository) Create(ctx context.Context, input CreateUserInput) (*Us
 	return user, nil
 }
 
-func (r *fakeRepository) List(ctx context.Context, input ListUsersInput) ([]User, int64, error) {
+func (r *fakeRepository) List(ctx context.Context, input ListUsersRequest) ([]User, int64, error) {
 	users := make([]User, 0, len(r.users))
 	for _, storedUser := range r.users {
 		users = append(users, *storedUser)
@@ -146,7 +146,7 @@ func (r *fakeRepository) FindByAppleID(ctx context.Context, appleID string) (*Us
 	return nil, ErrUserNotFound
 }
 
-func (r *fakeRepository) Update(ctx context.Context, id int64, input UpdateUserInput) (*User, error) {
+func (r *fakeRepository) Update(ctx context.Context, id int64, input UpdateUserRequest) (*User, error) {
 	user, ok := r.users[id]
 	if !ok {
 		return nil, ErrUserNotFound

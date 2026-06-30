@@ -33,6 +33,9 @@ type Config struct {
 	ApplePrivateKey  string
 	AppleRedirectURL string
 	AppleOAuthState  string
+
+	GeminiAPIKey string
+	GeminiModel  string
 }
 
 func Load() Config {
@@ -61,6 +64,9 @@ func Load() Config {
 		ApplePrivateKey:  getEnv("APPLE_PRIVATE_KEY", ""),
 		AppleRedirectURL: getEnv("APPLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/apple/callback"),
 		AppleOAuthState:  getEnv("APPLE_OAUTH_STATE", "change-this-state"),
+
+		GeminiAPIKey: getEnv("GOOGLE_GEMINI_API_KEY", getEnv("GEMINI_API_KEY", "")),
+		GeminiModel:  getEnv("GEMINI_MODEL", "gemini-2.5-flash"),
 	}
 
 	cfg.DatabaseURL = buildDatabaseURL(cfg)

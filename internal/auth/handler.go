@@ -100,21 +100,13 @@ func (h *Handler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	accessToken, err := h.google.ExchangeCode(c.Request.Context(), code)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return
-	}
-
-	googleUser, err := h.google.UserInfo(c.Request.Context(), accessToken)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return
-	}
-
-	result, err := h.service.LoginOrCreateGoogleUser(c.Request.Context(), *googleUser)
+	result, err := h.service.LoginWithGoogleCode(c.Request.Context(), h.google, code)
 	if errors.Is(err, ErrEmailAlreadyUsed) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+	if errors.Is(err, ErrOAuthProvider) {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
 	if err != nil {
@@ -151,21 +143,13 @@ func (h *Handler) AppleCallback(c *gin.Context) {
 		return
 	}
 
-	tokenResponse, err := h.apple.ExchangeCode(c.Request.Context(), code)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return
-	}
-
-	appleUser, err := h.apple.UserInfo(c.Request.Context(), tokenResponse.IDToken, callbackValue(c, "user"))
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-		return
-	}
-
-	result, err := h.service.LoginOrCreateAppleUser(c.Request.Context(), *appleUser)
+	result, err := h.service.LoginWithAppleCode(c.Request.Context(), h.apple, code, callbackValue(c, "user"))
 	if errors.Is(err, ErrEmailAlreadyUsed) {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		return
+	}
+	if errors.Is(err, ErrOAuthProvider) {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
 	if err != nil {

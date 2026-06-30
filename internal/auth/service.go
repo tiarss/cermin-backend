@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,9 @@ import (
 var (
 	ErrEmailAlreadyUsed   = errors.New("email already used")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrExpiredToken       = errors.New("expired token")
+	ErrOAuthProvider      = errors.New("oauth provider error")
 )
 
 type Service struct {
@@ -49,6 +53,20 @@ type AuthResult struct {
 	User  user.PublicUser `json:"user"`
 }
 
+type JWTClaims struct {
+	UserID    int64
+	Email     string
+	ExpiresAt time.Time
+	IssuedAt  time.Time
+}
+
+type jwtPayload struct {
+	Subject string `json:"sub"`
+	Email   string `json:"email"`
+	Exp     int64  `json:"exp"`
+	Iat     int64  `json:"iat"`
+}
+
 func (s *Service) Register(ctx context.Context, input RegisterInput) (*AuthResult, error) {
 	existingUser, err := s.users.FindByEmail(ctx, input.Email)
 	if err != nil && !errors.Is(err, user.ErrUserNotFound) {
@@ -64,7 +82,7 @@ func (s *Service) Register(ctx context.Context, input RegisterInput) (*AuthResul
 	}
 
 	passwordHash := string(passwordHashBytes)
-	createdUser, err := s.users.Create(ctx, user.CreateUserInput{
+	createdUser, err := s.users.Create(ctx, user.CreateUserRequest{
 		Name:         input.Name,
 		Email:        input.Email,
 		PasswordHash: &passwordHash,
@@ -96,6 +114,34 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (*AuthResult, err
 	return s.authResult(foundUser)
 }
 
+func (s *Service) LoginWithGoogleCode(ctx context.Context, google GoogleOAuth, code string) (*AuthResult, error) {
+	accessToken, err := google.ExchangeCode(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrOAuthProvider, err)
+	}
+
+	googleUser, err := google.UserInfo(ctx, accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrOAuthProvider, err)
+	}
+
+	return s.LoginOrCreateGoogleUser(ctx, *googleUser)
+}
+
+func (s *Service) LoginWithAppleCode(ctx context.Context, apple AppleOAuth, code string, userPayload string) (*AuthResult, error) {
+	tokenResponse, err := apple.ExchangeCode(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrOAuthProvider, err)
+	}
+
+	appleUser, err := apple.UserInfo(ctx, tokenResponse.IDToken, userPayload)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrOAuthProvider, err)
+	}
+
+	return s.LoginOrCreateAppleUser(ctx, *appleUser)
+}
+
 func (s *Service) LoginOrCreateGoogleUser(ctx context.Context, googleUser GoogleUserInfo) (*AuthResult, error) {
 	foundUser, err := s.users.FindByGoogleID(ctx, googleUser.ID)
 	if err == nil {
@@ -114,7 +160,7 @@ func (s *Service) LoginOrCreateGoogleUser(ctx context.Context, googleUser Google
 	}
 
 	googleID := googleUser.ID
-	createdUser, err := s.users.Create(ctx, user.CreateUserInput{
+	createdUser, err := s.users.Create(ctx, user.CreateUserRequest{
 		Name:         googleUser.Name,
 		Email:        googleUser.Email,
 		AuthProvider: "google",
@@ -145,7 +191,7 @@ func (s *Service) LoginOrCreateAppleUser(ctx context.Context, appleUser AppleUse
 	}
 
 	appleID := appleUser.ID
-	createdUser, err := s.users.Create(ctx, user.CreateUserInput{
+	createdUser, err := s.users.Create(ctx, user.CreateUserRequest{
 		Name:         appleUser.Name,
 		Email:        appleUser.Email,
 		AuthProvider: "apple",
@@ -201,4 +247,51 @@ func (s *Service) createJWT(foundUser *user.User) (string, error) {
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 
 	return strings.Join([]string{encodedHeader, encodedPayload, signature}, "."), nil
+}
+
+func (s *Service) ParseJWT(token string) (*JWTClaims, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, ErrInvalidToken
+	}
+
+	unsignedToken := parts[0] + "." + parts[1]
+	mac := hmac.New(sha256.New, []byte(s.jwtSecret))
+	mac.Write([]byte(unsignedToken))
+	expectedSignature := mac.Sum(nil)
+
+	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+	if !hmac.Equal(signature, expectedSignature) {
+		return nil, ErrInvalidToken
+	}
+
+	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	var payload jwtPayload
+	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	userID, err := strconv.ParseInt(payload.Subject, 10, 64)
+	if err != nil || userID <= 0 {
+		return nil, ErrInvalidToken
+	}
+
+	expiresAt := time.Unix(payload.Exp, 0)
+	if time.Now().After(expiresAt) {
+		return nil, ErrExpiredToken
+	}
+
+	return &JWTClaims{
+		UserID:    userID,
+		Email:     payload.Email,
+		ExpiresAt: expiresAt,
+		IssuedAt:  time.Unix(payload.Iat, 0),
+	}, nil
 }

@@ -6,6 +6,7 @@ import (
 	"cermin-backend/internal/admin"
 	"cermin-backend/internal/auth"
 	"cermin-backend/internal/config"
+	"cermin-backend/internal/journal"
 	"cermin-backend/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,10 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 	userService := user.NewService(userRepository)
 	userHandler := admin.NewUserHandler(userService)
 	authService := auth.NewService(userRepository, cfg.JWTSecret)
+	journalRepository := journal.NewRepository(db)
+	journalGemini := journal.NewGeminiClient(cfg.GeminiAPIKey, cfg.GeminiModel)
+	journalService := journal.NewService(journalRepository, userRepository, journalGemini)
+	journalHandler := journal.NewHandler(journalService)
 	authHandler := auth.NewHandler(authService, auth.GoogleOAuth{
 		ClientID:     cfg.GoogleClientID,
 		ClientSecret: cfg.GoogleClientSecret,
@@ -54,7 +59,7 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 			authRoutes.POST("/apple/callback", authHandler.AppleCallback)
 		}
 
-		adminRoutes := v1.Group("/admin")
+		adminRoutes := v1.Group("/admin", auth.RequireAuth(authService))
 		{
 			userRoutes := adminRoutes.Group("/users")
 			{
@@ -64,6 +69,11 @@ func Setup(db *gorm.DB, cfg config.Config) *gin.Engine {
 				userRoutes.PATCH("/:id", userHandler.Update)
 				userRoutes.DELETE("/:id", userHandler.Delete)
 			}
+		}
+
+		journalRoutes := v1.Group("/journals", auth.RequireAuth(authService))
+		{
+			journalRoutes.POST("", journalHandler.Create)
 		}
 	}
 
